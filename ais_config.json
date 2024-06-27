@@ -1,0 +1,10 @@
+{
+  "backend_providers": {
+    "ceph": {
+      "type": "ceph",
+      "access_key": "${ACCESS_KEY}",
+      "secret_key": "${SECRET_KEY}",
+      "endpoint": "${ENDPOINT}"
+    }
+  }
+}

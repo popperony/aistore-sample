@@ -1,0 +1,16 @@
+services:
+  ais:
+    image: aistore/aistore:latest
+    environment:
+      - AIS_BACKEND_PROVIDERS=${AIS_BACKEND_PROVIDERS}
+      - ACCESS_KEY=${ACCESS_KEY}
+      - SECRET_KEY=${SECRET_KEY}
+      - ENDPOINT=${ENDPOINT}
+    ports:
+      - "51080:51080"
+    volumes:
+      - "ais:/aisdata"
+      - "./ais_config.json:/etc/ais/ais_config.json"
+
+volumes:
+  ais:
