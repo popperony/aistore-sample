@@ -1,6 +1,6 @@
 services:
   ais:
-    image: aistore/aistore:latest
+    image: aistorage/cluster-minimal:latest
     environment:
       - AIS_BACKEND_PROVIDERS=${AIS_BACKEND_PROVIDERS}
       - ACCESS_KEY=${ACCESS_KEY}
@@ -9,7 +9,7 @@ services:
     ports:
       - "51080:51080"
     volumes:
-      - "ais:/aisdata"
+      - "${AIS_DISK}:/ais/disk0"
       - "./ais_config.json:/etc/ais/ais_config.json"
 
 volumes:
