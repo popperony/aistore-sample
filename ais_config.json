@@ -1,15 +1,4 @@
 {
-//  "fspaths": {
-//    "config": {
-//      "root": "/ais",
-//      "cache": {
-//        "capacity": "10GiB"
-//      }
-//    },
-//    "paths": [
-//      "/ais/disk0"
-//    ]
-//  },
   "backend_providers": {
     "ceph": {
       "type": "ceph",
