@@ -2,6 +2,7 @@ from aistore.pytorch.dataset import AISDataset
 from torch.utils.data import DataLoader
 from torchvision import transforms
 
+
 def get_data_loader(client_url: str, bucket_name: str, prefix: str, batch_size: int) -> DataLoader:
     """
     Функция для создания DataLoader для датасета ImageNet на базе AISTore.
@@ -23,9 +24,7 @@ def get_data_loader(client_url: str, bucket_name: str, prefix: str, batch_size: 
         client_url=client_url,
         urls_list=[f"s3://{bucket_name}/{prefix}"],
         ais_source_list=[],
-        etl_name=None,
+        etl_name=None
     )
 
-    return DataLoader(dataset, batch_size=batch_size, shuffle=True)
-
-
+    return DataLoader(dataset, batch_size=batch_size, shuffle=True, collate_fn=lambda x: (transform(x[0]), x[1]))
