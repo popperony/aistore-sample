@@ -32,7 +32,7 @@ def download_and_upload_data(client_url: str, bucket_name: str, prefix: str, hf_
 
         object_name = f"{prefix}/train/{label}/{id_}.jpg"
 
-        bucket.object(object_name).put_file(io.BytesIO(img_byte_arr.getvalue()))
+        bucket.object(object_name).put(data=img_byte_arr.getvalue(), content_type='image/jpeg')
 
         print(f"Uploaded {object_name}")
 
