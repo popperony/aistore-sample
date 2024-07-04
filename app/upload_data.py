@@ -14,7 +14,7 @@ def download_and_upload_data(client_url: str, bucket_name: str, prefix: str, hf_
     :param hf_token: Токен аутентификации Hugging Face.
     """
     login(hf_token)
-
+    print('Start downloading data...')
     dataset = load_dataset("ILSVRC/imagenet-1k", split='train')
 
     client = Client(client_url)
@@ -22,6 +22,7 @@ def download_and_upload_data(client_url: str, bucket_name: str, prefix: str, hf_
 
     temp_dir = "data/ilsvrc_imagenet1k/"
     os.makedirs(temp_dir, exist_ok=True)
+    print('Start upload dataset...')
 
     for idx, sample in enumerate(dataset):
         image = sample['image']
@@ -29,13 +30,18 @@ def download_and_upload_data(client_url: str, bucket_name: str, prefix: str, hf_
         image_path = os.path.join(temp_dir, f"train_{idx}.jpg")
         image.save(image_path)
 
-        object_name = f"{prefix}/train/{idx}.jpg"
-        with open(image_path, 'rb') as f:
-            bucket.object(object_name).put(f.read())
+        try:
+            object_name = f"{prefix}/train/{idx}.jpg"
+            with open(image_path, 'rb') as f:
+                bucket.object(object_name).put(f.read())
 
-        os.remove(image_path)
-
-        print(f"Uploaded {object_name}")
+            print(f"Uploaded {object_name}")
+        finally:
+            if os.path.exists(image_path):
+                os.remove(image_path)
+                print(f"Deleted temporary file {image_path}")
+            else:
+                print(f"File {image_path} does not exist")
 
 
 if __name__ == "__main__":
