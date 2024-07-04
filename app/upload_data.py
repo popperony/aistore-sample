@@ -15,7 +15,7 @@ def download_and_upload_data(client_url: str, bucket_name: str, prefix: str, hf_
     """
     login(hf_token)
     print('Start downloading data...')
-    dataset = load_dataset("ILSVRC/imagenet-1k", split='train')
+    dataset = load_dataset("ILSVRC/imagenet-1k", split='train', streaming=True)
 
     client = Client(client_url)
     bucket = client.bucket(bucket_name)
