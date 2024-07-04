@@ -29,7 +29,7 @@ def download_and_upload_data(client_url: str, bucket_name: str, prefix: str, hf_
         object_name = f"{prefix}/train/{id_}.jpg"
         with open(image_path, 'rb') as f:
             print(f'Uploading {object_name}')
-            bucket.put_object(object_name, data=f, content_type='image/jpeg')
+            bucket.object(object_name).put_file(image_path)
 
         os.remove(image_path)
 
