@@ -1,6 +1,7 @@
-import os
-from datasets import load_dataset
+import io
+
 from aistore import Client
+from datasets import load_dataset
 from huggingface_hub import login
 
 
@@ -23,16 +24,17 @@ def download_and_upload_data(client_url: str, bucket_name: str, prefix: str, hf_
 
     for id_, sample in enumerate(dataset):
         image = sample['image']
+        label = sample['label']
 
-        image_path = f"temp_train_{id_}.jpg"
-        image.save(image_path)
+        img_byte_arr = io.BytesIO()
+        image.save(img_byte_arr, format='JPEG')
+        img_byte_arr.seek(0)
 
-        object_name = f"{prefix}/train/{id_}.jpg"
-        with open(image_path, 'rb') as f:
-            print(f'Uploading {object_name}')
-            bucket.object(object_name).put_file(image_path)
+        object_name = f"{prefix}/train/{label}/{id_}.jpg"
 
-        os.remove(image_path)
+        bucket.object(object_name).put_file(io.BytesIO(img_byte_arr.getvalue()))
+
+        print(f"Uploaded {object_name}")
 
 
 if __name__ == "__main__":
