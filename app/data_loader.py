@@ -24,7 +24,6 @@ def get_data_loader(client_url: str, bucket_name: str, prefix: str, batch_size: 
         urls_list=[f"s3://{bucket_name}/{prefix}"],
         ais_source_list=[],
         etl_name=None,
-        transform=transform
     )
 
     return DataLoader(dataset, batch_size=batch_size, shuffle=True)
