@@ -1,10 +1,8 @@
-import io
 import os
 
 from aistore import Client
 from datasets import load_dataset
 from huggingface_hub import login
-from tqdm import tqdm
 
 
 def download_and_upload_data(client_url: str, bucket_name: str, prefix: str, hf_token: str) -> None:
@@ -27,17 +25,15 @@ def download_and_upload_data(client_url: str, bucket_name: str, prefix: str, hf_
     temp_dir = 'temp_images'
     os.makedirs(temp_dir, exist_ok=True)
 
-    dataset_size = sum(1 for _ in dataset)
-
-    for idx, sample in enumerate(tqdm(dataset, total=dataset_size, desc="Uploading Images")):
+    for id_, sample in enumerate(dataset):
         image = sample['image']
         label = sample['label']
 
-        temp_file_path = os.path.join(temp_dir, f"temp_{idx}.jpg")
+        temp_file_path = os.path.join(temp_dir, f"temp_{id_}.jpg")
         image.save(temp_file_path)
 
         bucket.put_files(path=temp_file_path, recursive=False, prepend=f"{prefix}/train/{label}/")
-
+        print(f'Upload file {temp_file_path}')
         os.remove(temp_file_path)
 
 
