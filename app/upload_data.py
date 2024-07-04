@@ -19,6 +19,7 @@ def download_and_upload_data(client_url: str, bucket_name: str, prefix: str, hf_
 
     client = Client(client_url)
     bucket = client.bucket(bucket_name)
+    bucket.create(exist_ok=True)
 
     for id_, sample in enumerate(dataset):
         image = sample['image']
