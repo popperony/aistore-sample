@@ -1,16 +1,20 @@
 import os
 from datasets import load_dataset
 from aistore import Client
+from huggingface_hub import login
 
 
-def download_and_upload_data(client_url: str, bucket_name: str, prefix: str) -> None:
+def download_and_upload_data(client_url: str, bucket_name: str, prefix: str, hf_token: str) -> None:
     """
     Функция для загрузки датасета ImageNet с Hugging Face и его загрузки в S3 через aistore.
 
     :param client_url: URL для подключения к AISTore.
     :param bucket_name: Название S3 бакета.
     :param prefix: Префикс для ключей объектов в бакете.
+    :param hf_token: Токен аутентификации Hugging Face.
     """
+    login(hf_token)
+
     dataset = load_dataset("ILSVRC/imagenet-1k", split='train')
 
     client = Client(client_url)
@@ -26,7 +30,8 @@ def download_and_upload_data(client_url: str, bucket_name: str, prefix: str) -> 
         image.save(image_path)
 
         object_name = f"{prefix}/train/{idx}.jpg"
-        bucket.object(object_name).put(image_path)
+        with open(image_path, 'rb') as f:
+            bucket.object(object_name).put(f.read())
 
         os.remove(image_path)
 
@@ -34,7 +39,8 @@ def download_and_upload_data(client_url: str, bucket_name: str, prefix: str) -> 
 
 
 if __name__ == "__main__":
-    client_url = "http://localhost:51080/"
+    client_url = "http://localhost:8080"
     bucket_name = "imagenet-data"
     prefix = "images"
-    download_and_upload_data(client_url, bucket_name, prefix)
+    hf_token = "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"
+    download_and_upload_data(client_url, bucket_name, prefix, hf_token)
