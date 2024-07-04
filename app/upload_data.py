@@ -39,7 +39,7 @@ def download_and_upload_data(client_url: str, bucket_name: str, prefix: str, hf_
 
 
 if __name__ == "__main__":
-    client_url = "http://localhost:8080"
+    client_url = "http://localhost:51080"
     bucket_name = "imagenet-data"
     prefix = "images"
     hf_token = "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"
