@@ -32,8 +32,10 @@ def download_and_upload_data(client_url: str, bucket_name: str, prefix: str, hf_
         temp_file_path = os.path.join(temp_dir, f"temp_{id_}.jpg")
         image.save(temp_file_path)
 
-        bucket.put_files(path=temp_file_path, recursive=False, prepend=f"{prefix}/train/{label}/")
-        print(f'Upload file {temp_file_path}')
+        object_name = f"{prefix}/train/{label}/{id_}.jpg"
+
+        bucket.object(object_name).put_file(temp_file_path)
+        print(f'Uploaded {object_name}')
         os.remove(temp_file_path)
 
 
