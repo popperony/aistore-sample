@@ -1,0 +1,19 @@
+[tool.poetry]
+name = "ais-sample"
+version = "0.1.0"
+description = ""
+authors = ["popperony <popperony@yandex.ru>"]
+readme = "README.md"
+packages = [{include = "app"}]
+
+[tool.poetry.dependencies]
+python = "^3.10"
+torch = "^2.3.1"
+torchvision = "^0.18.1"
+aistore = "^1.4.23"
+datasets = "^2.20.0"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
