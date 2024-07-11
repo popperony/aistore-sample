@@ -1,44 +1,101 @@
-from aistore import Client
+import os
+import tarfile
 import time
 
+import requests
+import torch
+import torch.optim as optim
+import torchvision.models as models
+import torchvision.transforms as transforms
+from aistore.pytorch import AISMapDataset
+from aistore.sdk import Client
+from torch.utils.data import DataLoader
 
-def load_dataset_from_url(aistore_url: str, dataset_url: str, aistore_bucket_name: str, object_name: str) -> None:
-    client = Client(aistore_url)
+dataset_url = "https://huggingface.co/datasets/ILSVRC/imagenet-1k/resolve/main/data/train_images_0.tar.gz"
+dataset_path = "train_images_0.tar.gz"
+extracted_path = "train_images"
 
-    buckets = client.cluster().list_buckets()
-    if aistore_bucket_name not in [b.name for b in buckets]:
-        client.bucket(aistore_bucket_name).create()
-        print(f"Bucket {aistore_bucket_name} created in AIStore.")
-    else:
-        print(f"Bucket {aistore_bucket_name} already exists in AIStore.")
+start_time_download = time.time()
+if not os.path.exists(dataset_path):
+    response = requests.get(dataset_url)
+    with open(dataset_path, 'wb') as f:
+        f.write(response.content)
+end_time_download = time.time()
 
-    start_time = time.time()
+start_time_extraction = time.time()
+if not os.path.exists(extracted_path):
+    with tarfile.open(dataset_path, "r:gz") as tar:
+        tar.extractall(extracted_path)
+end_time_extraction = time.time()
 
-    try:
-        response = client.bucket(aistore_bucket_name).put_object(
-            obj_name=object_name,
-            data=dataset_url,
-            params={"source": "web"}
-        )
+start_time_upload = time.time()
+ais_url = os.getenv("AIS_ENDPOINT", "http://localhost:51080")
+client = Client(ais_url)
+bucket_name = "imagenet-data1"
+bucket = client.bucket(bucket_name).create(exist_ok=True)
 
-        if response.status_code == 200:
-            print(f"File {object_name} downloaded to AIStore bucket {aistore_bucket_name} successfully.")
-        else:
-            raise Exception(f"Failed to download file to AIStore. Status code: {response.status_code}")
+for root, _, files in os.walk(extracted_path):
+    for file in files:
+        file_path = os.path.join(root, file)
+        with open(file_path, 'rb') as f:
+            bucket.object(file).put(f)
+end_time_upload = time.time()
 
-    except Exception as e:
-        print(f"An error occurred: {e}")
+transform = transforms.Compose([
+    transforms.Resize(256),
+    transforms.CenterCrop(224),
+    transforms.ToTensor(),
+    transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+])
 
-    end_time = time.time()
-    total_time = end_time - start_time
-    print(f"Total time taken to load dataset: {total_time:.2f} seconds")
+ais_dataset = AISMapDataset(
+    ais_source_list=[bucket],
+    transform=transform
+)
 
+start_time_loading = time.time()
+data_loader = DataLoader(
+    ais_dataset,
+    batch_size=32,
+    shuffle=True,
+    num_workers=4,
+    pin_memory=True
+)
+end_time_loading = time.time()
 
-if __name__ == "__main__":
-    AISTORE_URL = "http://localhost:51080"
-    AISTORE_BUCKET_NAME = 'imagenet-data'
-    S3_BUCKET_NAME = "imagenet-data"
-    DATASET_URL = 'https://huggingface.co/datasets/ILSVRC/imagenet-1k/blob/main/data/train_images_0.tar.gz'
-    OBJECT_NAME = 'train_images_0.tar.gz'
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+model = models.resnet18(weights=models.ResNet18_Weights.DEFAULT)
+model = model.to(device)
 
-    load_dataset_from_url(AISTORE_URL, DATASET_URL, AISTORE_BUCKET_NAME, OBJECT_NAME)
+criterion = torch.nn.CrossEntropyLoss()
+optimizer = optim.SGD(model.parameters(), lr=0.001, momentum=0.9)
+
+num_epochs = 5
+
+start_time_training = time.time()
+for epoch in range(num_epochs):
+    running_loss = 0.0
+    for i, data in enumerate(data_loader, 0):
+        inputs, labels = data
+        inputs, labels = inputs.to(device), labels.to(device)
+
+        optimizer.zero_grad()
+
+        outputs = model(inputs)
+        loss = criterion(outputs, labels)
+        loss.backward()
+        optimizer.step()
+
+        running_loss += loss.item()
+        if i % 100 == 99:
+            print(f"[{epoch + 1}, {i + 1}] loss: {running_loss / 100:.3f}")
+            running_loss = 0.0
+end_time_training = time.time()
+
+print("Обучение завершено")
+
+print(f"Время загрузки датасета: {end_time_download - start_time_download:.2f} секунд")
+print(f"Время распаковки датасета: {end_time_extraction - start_time_extraction:.2f} секунд")
+print(f"Время загрузки данных в AIStore: {end_time_upload - start_time_upload:.2f} секунд")
+print(f"Время создания DataLoader: {end_time_loading - start_time_loading:.2f} секунд")
+print(f"Время обучения модели: {end_time_training - start_time_training:.2f} секунд")
