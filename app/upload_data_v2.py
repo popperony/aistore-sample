@@ -1,9 +1,9 @@
-import aistore.sdk as ais
+from aistore import Client
 import time
 
 
 def load_dataset_from_url(aistore_url: str, dataset_url: str, aistore_bucket_name: str, object_name: str) -> None:
-    client = ais.Client(aistore_url)
+    client = Client(aistore_url)
 
     buckets = client.cluster().list_buckets()
     if aistore_bucket_name not in [b.name for b in buckets]:
