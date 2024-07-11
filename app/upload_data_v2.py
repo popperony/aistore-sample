@@ -7,7 +7,7 @@ import torch
 import torch.optim as optim
 import torchvision.models as models
 import torchvision.transforms as transforms
-from aistore.pytorch import AISMapDataset
+from aistore.pytorch.map_dataset import AISMapDataset
 from aistore.sdk import Client
 from torch.utils.data import DataLoader
 
