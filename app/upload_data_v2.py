@@ -15,8 +15,9 @@ def load_dataset_from_url(aistore_url: str, dataset_url: str, aistore_bucket_nam
     start_time = time.time()
 
     try:
-        response = client.bucket(aistore_bucket_name).object(object_name).put(
-            src=dataset_url,
+        response = client.bucket(aistore_bucket_name).put_object(
+            obj_name=object_name,
+            data=dataset_url,
             params={"source": "web"}
         )
 
