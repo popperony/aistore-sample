@@ -1,101 +1,93 @@
-import os
-import tarfile
 import time
-
-import requests
 import torch
+import torch.nn as nn
 import torch.optim as optim
-import torchvision.models as models
-import torchvision.transforms as transforms
-from aistore.pytorch.map_dataset import AISMapDataset
-from aistore.sdk import Client
-from torch.utils.data import DataLoader
+from torchvision import models, transforms
+from aistore import Client
+from io import BytesIO
+import tarfile
+from PIL import Image
 
-dataset_url = "https://huggingface.co/datasets/ILSVRC/imagenet-1k/resolve/main/data/train_images_0.tar.gz"
-dataset_path = "train_images_0.tar.gz"
-extracted_path = "train_images"
 
-start_time_download = time.time()
-if not os.path.exists(dataset_path):
-    response = requests.get(dataset_url)
-    with open(dataset_path, 'wb') as f:
-        f.write(response.content)
-end_time_download = time.time()
+client = Client("http://localhost:51080")
 
-start_time_extraction = time.time()
-if not os.path.exists(extracted_path):
-    with tarfile.open(dataset_path, "r:gz") as tar:
-        tar.extractall(extracted_path)
-end_time_extraction = time.time()
 
-start_time_upload = time.time()
-ais_url = os.getenv("AIS_ENDPOINT", "http://localhost:51080")
-client = Client(ais_url)
-bucket_name = "imagenet-data1"
-bucket = client.bucket(bucket_name).create(exist_ok=True)
+bucket_name = "imagenet-data"
 
-for root, _, files in os.walk(extracted_path):
-    for file in files:
-        file_path = os.path.join(root, file)
-        with open(file_path, 'rb') as f:
-            bucket.object(file).put(f)
-end_time_upload = time.time()
+print('Загрузка или создание бакета')
+bucket = client.bucket(bucket_name)
+bucket.create(exist_ok=True)
 
-transform = transforms.Compose([
-    transforms.Resize(256),
-    transforms.CenterCrop(224),
-    transforms.ToTensor(),
-    transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
-])
+print('Загрузка файла в бакет')
+local_file_path = "/home/test/train_images_0.tar.gz"
+object_name = "train_images_0.tar.gz"
+bucket.put_object(object_name, open(local_file_path, "rb"))
 
-ais_dataset = AISMapDataset(
-    ais_source_list=[bucket],
-    transform=transform
-)
 
-start_time_loading = time.time()
-data_loader = DataLoader(
-    ais_dataset,
-    batch_size=32,
-    shuffle=True,
-    num_workers=4,
-    pin_memory=True
-)
-end_time_loading = time.time()
+def load_data_from_tar(tar_content):
+    tar = tarfile.open(fileobj=BytesIO(tar_content))
+    images = []
+    labels = []
+    for member in tar.getmembers():
+        if member.name.endswith(('.jpg', '.jpeg', '.png', '.gif')):
+            f = tar.extractfile(member)
+            if f:
+                img = Image.open(BytesIO(f.read()))
+                img = img.convert('RGB')
+                images.append(transforms.ToTensor()(img))
 
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-model = models.resnet18(weights=models.ResNet18_Weights.DEFAULT)
-model = model.to(device)
+                # Извлекаем метку из имени файла
+                try:
+                    label = int(member.name.split('_')[0])
+                    labels.append(label)
+                except ValueError:
+                    print(f"Не удалось извлечь метку из файла: {member.name}")
+                    continue
 
-criterion = torch.nn.CrossEntropyLoss()
+    if not images:
+        raise ValueError("Не найдено подходящих изображений в архиве")
+
+    return torch.stack(images), torch.tensor(labels)
+
+
+object_content = bucket.get_object(object_name).read()
+train_images, train_labels = load_data_from_tar(object_content)
+
+# Создание Dataset
+train_dataset = torch.utils.data.TensorDataset(train_images, train_labels)
+
+# Подготовка данных
+train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=32, shuffle=True)
+
+
+# Инициализация модели ResNet-18
+model = models.resnet18(pretrained=False)
+num_classes = 10
+model.fc = nn.Linear(model.fc.in_features, num_classes)
+
+# Определение функции потерь и оптимизатора
+criterion = nn.CrossEntropyLoss()
 optimizer = optim.SGD(model.parameters(), lr=0.001, momentum=0.9)
 
-num_epochs = 5
+# Обучение модели
+num_epochs = 3
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+model.to(device)
 
-start_time_training = time.time()
+start_time = time.time()
+
 for epoch in range(num_epochs):
-    running_loss = 0.0
-    for i, data in enumerate(data_loader, 0):
-        inputs, labels = data
+    model.train()
+    for inputs, labels in train_loader:
         inputs, labels = inputs.to(device), labels.to(device)
 
         optimizer.zero_grad()
-
         outputs = model(inputs)
         loss = criterion(outputs, labels)
         loss.backward()
         optimizer.step()
 
-        running_loss += loss.item()
-        if i % 100 == 99:
-            print(f"[{epoch + 1}, {i + 1}] loss: {running_loss / 100:.3f}")
-            running_loss = 0.0
-end_time_training = time.time()
+end_time = time.time()
+total_time = end_time - start_time
 
-print("Обучение завершено")
-
-print(f"Время загрузки датасета: {end_time_download - start_time_download:.2f} секунд")
-print(f"Время распаковки датасета: {end_time_extraction - start_time_extraction:.2f} секунд")
-print(f"Время загрузки данных в AIStore: {end_time_upload - start_time_upload:.2f} секунд")
-print(f"Время создания DataLoader: {end_time_loading - start_time_loading:.2f} секунд")
-print(f"Время обучения модели: {end_time_training - start_time_training:.2f} секунд")
+print(f"Общее время обучения: {total_time:.2f} секунд")
