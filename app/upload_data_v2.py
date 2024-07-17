@@ -21,7 +21,9 @@ bucket.create(exist_ok=True)
 print('Загрузка файла в бакет')
 local_file_path = "/home/test/train_images_0.tar.gz"
 object_name = "train_images_0.tar.gz"
-bucket.put_object(object_name, open(local_file_path, "rb"))
+
+with open(local_file_path, "rb") as file:
+    bucket.object(object_name).put_file(local_file_path)
 
 
 def load_data_from_tar(tar_content):
