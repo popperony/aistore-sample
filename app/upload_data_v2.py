@@ -73,11 +73,9 @@ model = models.resnet18(pretrained=False)
 num_classes = 10
 model.fc = nn.Linear(model.fc.in_features, num_classes)
 
-# Определение функции потерь и оптимизатора
 criterion = nn.CrossEntropyLoss()
 optimizer = optim.SGD(model.parameters(), lr=0.001, momentum=0.9)
 
-# Обучение модели
 num_epochs = 3
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 model.to(device)
