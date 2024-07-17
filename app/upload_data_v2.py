@@ -52,7 +52,12 @@ def load_data_from_tar(tar_content):
     return torch.stack(images), torch.tensor(labels)
 
 
-object_content = bucket.get_object(object_name).read()
+try:
+    object_content = bucket.object(object_name).get().read()
+except Exception as e:
+    print(f"Ошибка при получении объекта {object_name}: {str(e)}")
+    raise
+
 train_images, train_labels = load_data_from_tar(object_content)
 
 # Создание Dataset
