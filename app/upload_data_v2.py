@@ -1,3 +1,4 @@
+import io
 import time
 import torch
 import torch.nn as nn
@@ -53,7 +54,11 @@ def load_data_from_tar(tar_content):
 
 
 try:
-    object_content = bucket.object(object_name).get().read()
+    object_reader = bucket.object(object_name).get()
+    object_content = io.BytesIO()
+    for chunk in object_reader:
+        object_content.write(chunk)
+    object_content.seek(0)
 except Exception as e:
     print(f"Ошибка при получении объекта {object_name}: {str(e)}")
     raise
