@@ -28,29 +28,24 @@ with open(local_file_path, "rb") as file:
 
 
 def load_data_from_tar(tar_content):
-    tar = tarfile.open(fileobj=BytesIO(tar_content))
+    tar = tarfile.open(fileobj=tar_content)
     images = []
     labels = []
     for member in tar.getmembers():
-        if member.name.endswith(('.jpg', '.jpeg', '.png', '.gif')):
+        if member.name.endswith(('.JPEG', '.jpg', '.jpeg', '.png')):
+            class_id = member.name.split('/')[0]
+
             f = tar.extractfile(member)
             if f:
-                img = Image.open(BytesIO(f.read()))
+                img = Image.open(io.BytesIO(f.read()))
                 img = img.convert('RGB')
                 images.append(transforms.ToTensor()(img))
-
-                # Извлекаем метку из имени файла
-                try:
-                    label = int(member.name.split('_')[0])
-                    labels.append(label)
-                except ValueError:
-                    print(f"Не удалось извлечь метку из файла: {member.name}")
-                    continue
+                labels.append(class_id)
 
     if not images:
         raise ValueError("Не найдено подходящих изображений в архиве")
 
-    return torch.stack(images), torch.tensor(labels)
+    return torch.stack(images), labels
 
 
 try:
@@ -63,16 +58,17 @@ except Exception as e:
     print(f"Ошибка при получении объекта {object_name}: {str(e)}")
     raise
 
+print('Обработка данных')
 train_images, train_labels = load_data_from_tar(object_content)
 
-# Создание Dataset
+print('Подготовка датасета')
 train_dataset = torch.utils.data.TensorDataset(train_images, train_labels)
 
-# Подготовка данных
+print('Подготовка данных')
 train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=32, shuffle=True)
 
 
-# Инициализация модели ResNet-18
+print('Инициализация resnet')
 model = models.resnet18(pretrained=False)
 num_classes = 10
 model.fc = nn.Linear(model.fc.in_features, num_classes)
@@ -87,7 +83,7 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 model.to(device)
 
 start_time = time.time()
-
+print('Запуск обучения')
 for epoch in range(num_epochs):
     model.train()
     for inputs, labels in train_loader:
