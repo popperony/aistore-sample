@@ -31,8 +31,8 @@ class AISTarDataset(Dataset):
             self.members = [m for m in tar.getmembers() if m.isfile() and m.name.endswith('.jpg')]
 
     def download_tar(self):
-        response = self.client.get_object(self.bucket_name, self.tar_path)
-        self.tar_content = response.content
+        obj = self.client.bucket(self.bucket_name).object(self.tar_path)
+        self.tar_content = obj.read_all()
 
     def __len__(self):
         return len(self.members)
